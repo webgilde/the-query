@@ -1,1 +1,26 @@
-/* This stylesheet is used to style the admin option form of the plugin. */
+#query-parameters-box.postbox .hndle {
+    background-color: #21759B;
+    background-image: linear-gradient(to bottom, #2A95C5, #21759B);
+    border-color: #21759B #21759B #1E6A8D;
+    box-shadow: 0 1px 0 rgba(120, 200, 230, 0.5) inset;
+    color: #FFFFFF;
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.1);
+}
+#query-parameters-box.postbox .inside {
+    margin: 0;
+    padding: 0;
+}
+#query-parameters-box.postbox h4 {
+    background: linear-gradient(to top, #ECECEC, #F9F9F9) repeat scroll 0 0 #F1F1F1;
+    font-size: 15px;
+    font-weight: 400;
+    line-height: 1;
+    margin: 0;
+    padding: 10px 10px 5px;
+}
+#query-parameters-box.postbox .parameter-content {
+    padding: 10px;
+}
+#query-parameters-box.postbox .parameter-content h5 {
+    font-size: 1em;
+}

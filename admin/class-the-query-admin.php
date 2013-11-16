@@ -13,10 +13,28 @@
 /**
  * This class is used to work with the administrative side of the WordPress site.
  *
- * @package Plugin_Name_Admin
- * @author  Your Name <email@example.com>
+ * @package The_Query_Admin
+ * @author  Thomas Maier <thomas.maier@webgilde.com>
  */
 class The_Query_Admin {
+
+    /**
+     * Array with parameters for the query
+     *
+     * @since 1.0.0
+     *
+     * @var array
+     */
+    public $params = array();
+
+    /**
+     * Array with groups of parameters for the query
+     *
+     * @since 1.0.0
+     *
+     * @var array
+     */
+    public $param_groups = array();
 
     /**
      * Instance of this class.
@@ -63,6 +81,7 @@ class The_Query_Admin {
         add_filter('plugin_action_links_' . $plugin_basename, array($this, 'add_action_links'));
 
         add_action('admin_init', array($this, 'add_meta_boxes'));
+        add_action('admin_init', array($this, 'load_query_arrays'));
     }
 
     /**
@@ -83,7 +102,7 @@ class The_Query_Admin {
     }
 
     /**
-     * Register and enqueue admin-specific style sheet.
+     * Register and enqueue admin-specific style sheets.
      *
      * @since     1.0.0
      *
@@ -96,7 +115,7 @@ class The_Query_Admin {
         }
 
         $screen = get_current_screen();
-        if ($this->plugin_screen_hook_suffix == $screen->id) {
+        if ($this->plugin_screen_hook_suffix == $screen->id || 'the_queries' == $screen->id ) {
             wp_enqueue_style($this->plugin_slug . '-admin-styles', plugins_url('assets/css/admin.css', __FILE__), array(), The_Query::VERSION);
         }
     }
@@ -165,8 +184,18 @@ class The_Query_Admin {
      */
     public function add_meta_boxes() {
         add_meta_box(
-                'query-parameters-box', __('Query Parameters', $this->plugin_slug), __CLASS__ . '::markup_meta_boxes', The_Query::POST_TYPE_SLUG, 'normal', 'high'
+                'query-parameters-box', __('Query Parameters (define which content to get)', $this->plugin_slug), array($this, 'markup_meta_boxes'), The_Query::POST_TYPE_SLUG, 'normal', 'high'
         );
+    }
+
+    /**
+     * load arrays we need to build the query
+     */
+    public function load_query_arrays() {
+        require_once(plugin_dir_path(__FILE__) . 'includes/query_parameter_groups.php');
+        require_once(plugin_dir_path(__FILE__) . 'includes/query_parameters.php');
+        $this->params = $the_query_parameters;
+        $this->param_groups = $the_query_parameter_groups;
     }
 
     /**
@@ -176,9 +205,10 @@ class The_Query_Admin {
      * @param obj $post
      * @param array $box
      */
-    public static function markup_meta_boxes($post, $box) {
+    public function markup_meta_boxes($post, $box) {
         switch ($box['id']) {
             case 'query-parameters-box':
+                $parameter_contents = $this->load_parameter_group_meta_boxes($post);
                 $view = 'parameters-metabox.php';
                 break;
         }
@@ -186,6 +216,32 @@ class The_Query_Admin {
         $view = plugin_dir_path(__FILE__) . 'views/' . $view;
         if (is_file($view)) {
             require_once( $view );
+        }
+    }
+
+    /**
+     * load meta boxes for parameters ordered by groups
+     *
+     * @since 1.0.0
+     * @param obj $post
+     * @param string $parameter
+     */
+    public function load_parameter_group_meta_boxes($post) {
+        require_once(plugin_dir_path(__FILE__) . 'includes/class-parameter-callbacks.php');
+        if(isset($this->param_groups) && isset($this->params) && class_exists('The_Query_Admin_Parameter_Callbacks'))
+        foreach($this->param_groups as $_parameter_group_id => $_parameter_group) {
+            // get content for the parameters
+            if(is_array($_parameter_group['params']))
+            foreach($_parameter_group['params'] as $_parameter_id) {
+                ob_start();
+                    // check, if parameter callback function exists
+                    if(method_exists('The_Query_Admin_Parameter_Callbacks', $_parameter_id)) {
+                        The_Query_Admin_Parameter_Callbacks::$_parameter_id();
+                    }
+                    // get parameter callback function
+
+                $this->param_groups[$_parameter_group_id]['param_content'][$_parameter_id] = ob_get_clean();
+            }
         }
     }
 
