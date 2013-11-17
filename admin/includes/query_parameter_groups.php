@@ -14,15 +14,6 @@
 $_textdomain = The_Query::get_instance()->get_plugin_slug();
 
 $the_query_parameter_groups = array(
-    'general' => array(
-        'name' => __('General'),
-        'params' => array(
-            'post_type',
-            'posts_per_page',
-            'orderby'
-        ),
-        'advanced' => true
-    ),
     'author' => array(
         'name' => __('Authors', $_textdomain),
         'params' => array(

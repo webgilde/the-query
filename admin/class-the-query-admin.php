@@ -161,7 +161,9 @@ class The_Query_Admin {
          * Add a settings page for this plugin to the Settings menu.
          */
         $this->plugin_screen_hook_suffix = add_options_page(
-                __('The_Query settings', $this->plugin_slug), __('The_Query', $this->plugin_slug), 'manage_options', $this->plugin_slug, array($this, 'display_plugin_admin_page')
+                __('The_Query settings', $this->plugin_slug),
+                __('The_Query', $this->plugin_slug), 'manage_options',
+                $this->plugin_slug, array($this, 'display_plugin_admin_page')
         );
     }
 
@@ -183,7 +185,8 @@ class The_Query_Admin {
 
         return array_merge(
                         array(
-                    'settings' => '<a href="' . admin_url('options-general.php?page=' . $this->plugin_slug) . '">' . __('Settings', $this->plugin_slug) . '</a>'
+                    'settings' => '<a href="' . admin_url('options-general.php?page=' .
+                            $this->plugin_slug) . '">' . __('Settings', $this->plugin_slug) . '</a>'
                         ), $links
         );
     }
@@ -195,7 +198,14 @@ class The_Query_Admin {
      */
     public function add_meta_boxes() {
         add_meta_box(
-                'query-parameters-box', __('Query Parameters (define which content to get)', $this->plugin_slug), array($this, 'markup_meta_boxes'), The_Query::POST_TYPE_SLUG, 'normal', 'high'
+                'query-main-parameters-box', __('Basic Parameters',
+                $this->plugin_slug), array($this, 'markup_meta_boxes'),
+                The_Query::POST_TYPE_SLUG, 'normal', 'high'
+        );
+        add_meta_box(
+                'query-parameters-box', __('Fine tune your Query',
+                        $this->plugin_slug), array($this, 'markup_meta_boxes'),
+                The_Query::POST_TYPE_SLUG, 'normal', 'high'
         );
     }
 
@@ -248,12 +258,18 @@ class The_Query_Admin {
      */
     public function markup_meta_boxes($post, $box) {
         switch ($box['id']) {
+            case 'query-main-parameters-box':
+                $main_parameters = array('post_type', 'posts_per_page', 'orderby'); // use defined parameters
+                $this->load_query_args();
+                $view = 'main-parameters-metabox.php';
+                break;
             case 'query-parameters-box':
                 $parameter_contents = $this->load_parameter_group_meta_boxes($post);
                 $view = 'parameters-metabox.php';
                 break;
         }
 
+        if(empty($view)) return;
         $view = plugin_dir_path(__FILE__) . 'views/' . $view;
         if (is_file($view)) {
             require_once( $view );

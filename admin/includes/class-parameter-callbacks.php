@@ -90,6 +90,7 @@ class The_Query_Admin_Parameter_Callbacks {
         $view = THEQUERYBASEPATH . 'admin/views/callbacks/' . $view . '.php';
 
         // load current value
+        $current = '';
         if(!empty(The_Query_Admin::get_instance()->query_args[$index]))
             $current = The_Query_Admin::get_instance()->query_args[$index];
 
