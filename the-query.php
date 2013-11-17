@@ -23,6 +23,7 @@
  * Domain Path:       /languages
  *
  * based on https://github.com/tommcfarlin/WordPress-Plugin-Boilerplate, version from Nov 16th 2013
+ * inspirations from https://github.com/iandunn/WordPress-Plugin-Skeleton
  */
 
 // If this file is called directly, abort.

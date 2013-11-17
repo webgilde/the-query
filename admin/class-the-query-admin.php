@@ -37,6 +37,15 @@ class The_Query_Admin {
     public $param_groups = array();
 
     /**
+     * Array with query arguments
+     *
+     * @since 1.0.0
+     *
+     * @var array
+     */
+    public $query_args = array();
+
+    /**
      * Instance of this class.
      *
      * @since    1.0.0
@@ -82,6 +91,8 @@ class The_Query_Admin {
 
         add_action('admin_init', array($this, 'add_meta_boxes'));
         add_action('admin_init', array($this, 'load_query_arrays'));
+        add_action('save_post', array($this, 'save_post'), 10, 2 );
+        add_filter('content_save_pre', array($this, 'save_query_in_content'), 10);
     }
 
     /**
@@ -115,7 +126,7 @@ class The_Query_Admin {
         }
 
         $screen = get_current_screen();
-        if ($this->plugin_screen_hook_suffix == $screen->id || 'the_queries' == $screen->id ) {
+        if ($this->plugin_screen_hook_suffix == $screen->id || 'the_queries' == $screen->id) {
             wp_enqueue_style($this->plugin_slug . '-admin-styles', plugins_url('assets/css/admin.css', __FILE__), array(), The_Query::VERSION);
         }
     }
@@ -189,6 +200,36 @@ class The_Query_Admin {
     }
 
     /**
+     * load the query arguments from post content field
+     * merge with defaults for empty values
+     *
+     * @since 1.0.0
+     */
+    public function load_query_args() {
+        global $post;
+        $defaults = $this->get_default_query_args();
+        if($this->query_args == array())
+            // merge saved values with default values
+            if(empty($post->post_content) || !is_array(unserialize($post->post_content)))
+                $this->query_args = $defaults;
+            else
+                $this->query_args = unserialize($post->post_content) + $defaults;
+    }
+
+    /**
+     * get default query args
+     */
+    public function get_default_query_args() {
+        if(!isset($this->params)) return;
+        $query_args = array();
+        foreach($this->params as $_param_key => $_param) {
+            if(isset($_param['default']))
+                $query_args[$_param_key] = $_param['default'];
+        }
+        return $query_args;
+    }
+
+    /**
      * load arrays we need to build the query
      */
     public function load_query_arrays() {
@@ -228,21 +269,104 @@ class The_Query_Admin {
      */
     public function load_parameter_group_meta_boxes($post) {
         require_once(plugin_dir_path(__FILE__) . 'includes/class-parameter-callbacks.php');
-        if(isset($this->param_groups) && isset($this->params) && class_exists('The_Query_Admin_Parameter_Callbacks'))
-        foreach($this->param_groups as $_parameter_group_id => $_parameter_group) {
-            // get content for the parameters
-            if(is_array($_parameter_group['params']))
-            foreach($_parameter_group['params'] as $_parameter_id) {
-                ob_start();
-                    // check, if parameter callback function exists
-                    if(method_exists('The_Query_Admin_Parameter_Callbacks', $_parameter_id)) {
-                        The_Query_Admin_Parameter_Callbacks::$_parameter_id();
-                    }
-                    // get parameter callback function
 
-                $this->param_groups[$_parameter_group_id]['param_content'][$_parameter_id] = ob_get_clean();
+        $this->load_query_args();
+
+        if (isset($this->param_groups) && isset($this->params) && class_exists('The_Query_Admin_Parameter_Callbacks'))
+            foreach ($this->param_groups as $_parameter_group_id => $_parameter_group) {
+                // get content for the parameters
+                if (is_array($_parameter_group['params']))
+                    foreach ($_parameter_group['params'] as $_parameter_id) {
+                        ob_start();
+                        // check, if parameter callback function exists
+                        if (method_exists('The_Query_Admin_Parameter_Callbacks', $_parameter_id)) {
+                            $values = '';
+                            if (isset($this->params[$_parameter_id]['values']))
+                                $values = $this->params[$_parameter_id]['values'];
+                            The_Query_Admin_Parameter_Callbacks::$_parameter_id($values);
+                        }
+                        // get parameter callback function
+
+                        $this->param_groups[$_parameter_group_id]['param_content'][$_parameter_id] = ob_get_clean();
+                    }
+            }
+    }
+
+    /**
+     * Saves values of the the custom post type
+     *
+     * @param int $post_id
+     * @param object $post
+     */
+    public function save_post($post_id, $revision) {
+        /*global $post;
+        $ignored_actions = array('trash', 'untrash', 'restore');
+
+        if (did_action('save_post') !== 1) {
+            return;
+        }
+
+        if (isset($_GET['action']) && in_array($_GET['action'], $ignored_actions)) {
+            return;
+        }
+
+        if (!$post || $post->post_type != The_Query::POST_TYPE_SLUG || !current_user_can('manage_options', $post_id)) {
+            return;
+        }
+
+        if (( defined('DOING_AUTOSAVE') && DOING_AUTOSAVE ) || $post->post_status == 'auto-draft') {
+            return;
+        }*/
+
+    }
+
+    /**
+     * building the query
+     *
+     * @param int $post_id
+     * @param array $new_values
+     */
+    protected static function build_the_query($post_id, $values) {
+        $query_args = array();
+        // get param information
+        $params = self::get_instance()->params;
+
+        foreach($values as $_value_key => $_value) {
+            switch ($_value_key ) {
+                case 'post_type' :
+                    // don’t save if post type is default
+                    if($_value == $params['post_type']['default']) break;
+                    if(count($_value) == 1) {
+                        $query_args['post_type'] = $_value[0];
+                    } else {
+                        $query_args['post_type'] = $_value;
+                    }
+                    break;
             }
         }
+
+        //print_r($query_args);
+        return $query_args;
+    }
+
+    /**
+     * save the query arguments into the content field
+     *
+     * @param mixed $content
+     * @return string serialized array with query arguments
+     */
+    public function save_query_in_content($content) {
+        global $post;
+
+        if (!$post || $post->post_type != The_Query::POST_TYPE_SLUG || !current_user_can('manage_options', $post->ID)) {
+            return $content;
+        }
+
+        if (( defined('DOING_AUTOSAVE') && DOING_AUTOSAVE ) || $post->post_status == 'auto-draft') {
+            return $content;
+        }
+        $this->query_args = self::build_the_query($post->ID, $_POST['the_query']);
+        return serialize($this->query_args);
     }
 
 }
